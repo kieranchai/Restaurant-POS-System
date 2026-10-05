@@ -171,6 +171,16 @@ h1, h2, h3 { font-weight: 700; letter-spacing: -0.01em; }
   outline: none; border-color: var(--brand);
   box-shadow: 0 0 0 3px rgba(234,88,12,.14);
 }
+/* daisyUI paints these from its HSL theme vars, so re-point them at the brand orange. */
+.checkbox-primary, .radio-primary {
+  --p: 21 90% 48%;
+  --pc: 0 0% 100%;
+  --chkbg: var(--p);
+  --chkfg: var(--pc);
+  border-color: #d3d6dd;
+}
+.checkbox-primary:hover, .radio-primary:hover { border-color: var(--brand); }
+.checkbox-primary:focus-visible, .radio-primary:focus-visible { outline-color: var(--brand); }
 .checkbox-primary:checked, .radio-primary:checked { background-color: var(--brand); border-color: var(--brand); }
 .label-text { font-size: 14px; color: var(--ink); }
 
