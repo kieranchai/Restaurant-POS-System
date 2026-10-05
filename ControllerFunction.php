@@ -104,7 +104,7 @@ function getAllMembers()
 function getMember($memberNumber)
 {
     global $DB;
-    $selectSQL = sprintf("SELECT * FROM member WHERE memberNumber = %s", $memberNumber);
+    $selectSQL = sprintf("SELECT * FROM member WHERE memberNumber = '%s'", $memberNumber);
     $member = $DB->select_query($selectSQL, 1);
     return $member;
 }
@@ -176,7 +176,10 @@ function getLatestPayment()
 function getUser($username, $userpassword)
 {
     global $DB;
-    $selectSQL = sprintf("SELECT * FROM `User` WHERE userName = '%s' AND userPassword = md5('%s')", $username, $userpassword);
+    // Passwords are stored as md5 hashes (kept from the original schema).
+    // The hash is computed in PHP because SQLite has no built-in MD5() function.
+    $passwordHash = md5($userpassword);
+    $selectSQL = sprintf("SELECT * FROM `User` WHERE userName = '%s' AND userPassword = '%s'", $username, $passwordHash);
     $user = $DB->select_query($selectSQL, 1);
     return $user;
 }
@@ -228,9 +231,9 @@ function createBill($sum, $billItemIds, $paymentMethod, $tableId, $branchId)
 {
     global $DB;
 
-    if(!empty(getLatestBill())){
-        $id = getLatestBill()['customerId'];
-        $id = $id + 1;
+    $latestBill = getLatestBill();
+    if (is_array($latestBill)) {
+        $id = $latestBill['customerId'] + 1;
     } else {
         $id = 1;
     }
@@ -243,9 +246,8 @@ function createBillSameOrder($sum, $billItemIds, $paymentMethod, $tableId, $bran
 {
     global $DB;
 
-    if(!empty(getLatestBill())){
-        $id = getLatestBill()['customerId'];
-    }
+    $latestBill = getLatestBill();
+    $id = is_array($latestBill) ? $latestBill['customerId'] : 1;
 
     $insertSQL = sprintf("INSERT INTO Bill VALUES (NULL, '%s', $sum, $tableId, $branchId, $id)", $billItemIds);
     $DB->update_query($insertSQL);
@@ -355,7 +357,7 @@ function freeTable($tableId)
 function updateMember($memberNumber, $pointsGotten, $pointsDeducted)
 {
     global $DB;
-    $updateSQL = sprintf("UPDATE member SET totalPoints= totalPoints + %s - %s WHERE memberNumber = %s", $pointsGotten, $pointsDeducted, $memberNumber);
+    $updateSQL = sprintf("UPDATE member SET totalPoints= totalPoints + %s - %s WHERE memberNumber = '%s'", $pointsGotten, $pointsDeducted, $memberNumber);
     $DB->update_query($updateSQL);
 }
 

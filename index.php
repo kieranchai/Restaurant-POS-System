@@ -1,61 +1,66 @@
-<html>
+<?php
+/******************************************************************
+   index.php
+   Landing page: guests start a self-order, staff log in.
+   PHP logic runs first so header() redirects work correctly.
+   ******************************************************************/
+include("Common.php");
 
-<head>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.6/dist/full.css" rel="stylesheet" type="text/css" />
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2/dist/tailwind.min.css" rel="stylesheet" type="text/css" />
-</head>
+$error = "";
+if (isset($_POST['login']) && !empty($_POST['username']) && !empty($_POST['userpassword'])) {
+    $user = getUser($_POST['username'], $_POST['userpassword']);
+    if (is_array($user)) {
+        $userRole = $user['userRole'];
+        header("location: admin.php?role=" . $userRole);
+        exit;
+    } else {
+        $error = "Your username or password is invalid.";
+    }
+}
 
-<body>
-    <?php
-    /******************************************************************
-       View.php
-       This file is where the user interacts only and checks all the POST actions
-       PHP can be combined with HTML codes.
-       ******************************************************************/
+$pageTitle = "Ember POS";
+include("partials/head.php");
+?>
 
-    include("Common.php");
+<div class="auth-wrap">
+    <div class="auth-card">
 
-    if (isset($_POST['login']) && !empty($_POST['username']) && !empty($_POST['userpassword'])) {
-        $user = getUser($_POST['username'], $_POST['userpassword']);
-        if (is_array($user)) {
-            $userRole = $user['userRole']; 
-            header("location: admin.php?role=".$userRole);
-        } else {
-            $error = "Your Username or Password is invalid!";
+        <h1>Ember POS</h1>
+        <p class="auth-sub">Restaurant point of sale and self ordering</p>
+
+        <?php
+        if ($error) {
+            echo "<div class='alert alert-error mb-4'><div>";
+            echo sprintf("<span>%s</span>", $error);
+            echo "</div></div>";
         }
-    }
+        ?>
 
-    if ($error) {
-        echo sprintf("<div class='alert alert-error shadow-lg' style='border-radius: 0 !important;'> <div>
-        <svg xmlns='http://www.w3.org/2000/svg' class='stroke-current flex-shrink-0 h-6 w-6' fill='none' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'/></svg>
-        <span>%s</span>
-      </div></div>", $error);
-    }
+        <form action="view.php" method="post">
+            <input type="hidden" name="action">
+            <input class="btn btn-success btn-block" type="submit" value="Start Self-Order" />
+        </form>
 
-    echo "<div class='container my-16 px-6 mx-auto'>";
-    echo "<div class='navbar text-neutral-content grid justify-center items-center'>";
-    echo "<p class='font-bold'>KFC Ordering System</p>";
-    echo "</div>";
+        <div class="auth-divider">Staff login</div>
 
-    echo "<div class='pt-16 grid justify-center items-center'>";
+        <form method="post">
+            <label class="field-label" for="username">Username</label>
+            <input id="username" class="input w-full mb-3" type="text" name="username" placeholder="Username" data-vgroup="staffLogin" data-validate-field required>
 
-    // Guest Button
-    echo "<form class='mb-8' action=view.php method='post'>";
-    echo "<input type='hidden' name='action'><input class='btn btn-success w-full max-w-xs' type='submit' value='Self-Order' />";
-    echo "</form>";
+            <label class="field-label" for="userpassword">Password</label>
+            <input id="userpassword" class="input w-full mb-4" type="password" name="userpassword" placeholder="Password" data-vgroup="staffLogin" data-validate-field required>
 
-    echo "<div class='divider'>OR</div>";
+            <input type="hidden" name="login">
+            <input class="btn btn-primary btn-block" type="submit" value="Log In" data-vgroup="staffLogin" data-validate-btn />
+        </form>
 
-    // Admin Log In 
-    echo "<form class='mt-8' method='post'>";
-    echo "<input class='input input-bordered input-primary w-full max-w-xs' type='text' name='username' placeholder='Username' required><br><br>";
-    echo "<input class='input input-bordered input-primary w-full max-w-xs' type='password' name='userpassword' placeholder='Password' required><br><br>";
-    echo "<input type='hidden' name='login'><input class='btn btn-primary w-full max-w-xs' type='submit' value='Staff Login' />";
-    echo "</form>";
+        <p class="auth-hint">
+            Demo accounts:
+            <button type="button" class="demo-fill" data-user="admin" data-pass="admin1">admin</button>
+            <button type="button" class="demo-fill" data-user="staff" data-pass="johnlogin">staff</button>
+        </p>
 
-    echo "</div>";
-    echo "</div>";
-    ?>
-</body>
+    </div>
+</div>
 
-</html>
+<?php include("partials/footer.php"); ?>

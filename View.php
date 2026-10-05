@@ -1,12 +1,4 @@
-<html>
-
-<head>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.6/dist/full.css" rel="stylesheet" type="text/css" />
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2/dist/tailwind.min.css" rel="stylesheet" type="text/css" />
-</head>
-
-<body>
-    <?php
+<?php
     /******************************************************************
        View.php
        This file is where the user interacts only and checks all the POST actions
@@ -17,17 +9,15 @@
 
     $branches = getAllBranches();
 
+    $pageTitle = "Ember Order";
+    include("partials/head.php");
+
     if (!empty($_POST)):
         // debug message to check the post actions
         //printArray($_POST);
     
         // based on the action, display the right information
         switch ($_POST['action']):
-            // case "selectBranch":
-            //     // get the item being added 
-            //     $branchId = $_POST['branchId'];
-            //     displayTables($branchId);
-            //     break;
             case "selectBranch":
                 // get the item being added 
                 $branchId = $_POST['branchId'];
@@ -102,7 +92,7 @@
                     displayDiscountPopup();
                 } else {
                     $discount = 0;
-                    displayCart($branchId, $discount, $tableId, $isTakeaway, $newCust);
+                    displayCart($branchId, $discount, $tableId, $isTakeaway, $newCust, true);
                 }
                 break;
             case "removeItemFromCart":
@@ -134,8 +124,9 @@
             case "goBackFromMenu":
                 $branchId = $_POST['branchId'];
                 $isTakeaway = $_POST['isTakeaway'];
+                $currentTableId = isset($_POST['tableId']) ? $_POST['tableId'] : null;
                 removeAllCartItems();
-                displayTables($branchId, $isTakeaway);
+                displayTables($branchId, $isTakeaway, $currentTableId);
                 break;
             case "goBackFromCart":
                 $branchId = $_POST['branchId'];
@@ -168,10 +159,10 @@
                 $sum = $_POST['sum'];
                 $billItemIds = $_POST['billItemIds'];
                 $member = getMember($_POST['memberNumber']);
-                if (!empty($member)) {
+                if (is_array($member) && !empty($member['memberNumber'])) {
                     displayPay($newCust, $branchId, $sum, $billItemIds, $tableId, $isTakeaway, $_POST['memberNumber']);
                 } else {
-                    displayPay($newCust, $branchId, $sum, $billItemIds, $tableId, $isTakeaway);
+                    displayPay($newCust, $branchId, $sum, $billItemIds, $tableId, $isTakeaway, null, false, true);
                 }
                 break;
             case "redeemPoints":
@@ -235,8 +226,5 @@
         displayBranches($branches);
     endif;
 
+    include("partials/footer.php");
     ?>
-
-</body>
-
-</html>

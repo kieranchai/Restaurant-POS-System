@@ -3,14 +3,11 @@ require_once('DB.class.php'); // controls all the connection to Database
 require_once('ControllerFunction.php');
 require_once('ControllerDisplay.php');
 
-// initialising DB conection
+// Initialise the database connection.
+// The app uses a self-contained SQLite file (no server to install). On first
+// run the file is created and seeded automatically from sql/schema.sqlite.sql.
 $DB = new DB();
-$DB->host = "localhost";
-$DB->user = "root";
-$DB->password = "root";
-$DB->db = "uxg2520su23software_systemdesigners";
-// modify this and add _[yourTeamName]. When you create the database, make sure they are the same database name
-// Example: uxg2520su23software_AlwynTeamName
+$DB->connectSqlite(__DIR__ . '/data/ember.sqlite', __DIR__ . '/sql/schema.sqlite.sql');
 
 // to print out Array in a nice HTML format for easy reading
 function printArray($array)

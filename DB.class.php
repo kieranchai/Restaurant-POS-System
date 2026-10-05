@@ -1,112 +1,104 @@
 <?php
 	/******************************************************************
 	DB.class.php
-	This file has all the methods to run database queries.
+	Database access layer.
+
+	Originally written for MySQL (MySQLi). It now runs on SQLite via PDO so
+	the whole app works from a single file with no database server to install
+	or configure. The public API (select_query / update_query) and its return
+	values are unchanged, so the rest of the app did not need to be rewritten.
 	******************************************************************/
 class DB
 {
 	/****************************************************************************
 	* ATTRIBUTES                                                                *
 	****************************************************************************/
-	
+
 	var $id;
-	var $host;
-	var $db;
-	var $user;
-	var $mysqli;
-	var $password;
-	var $connection;
-	var $connected;
-	
-	var $querystring;
+	var $db;              // path to the SQLite file
+	var $pdo;             // PDO connection (reused across queries)
 	var $debugmode;
 	var $logfile;
-	var $totalquerytime;
-	
+
 	/****************************************************************************
 	* CONSTRUCTOR                                                               *
 	****************************************************************************/
-	
-	function __construct($id="")
+
+	function __construct($id = "")
 	{
-		$this->id = $id; // Unique Identifier
-		$this->mysqli = "";
-		$this->host = "";
-		$this->db = "";
-		$this->user = "";
-		$this->password = "";
-		$this->connected = 0;
+		$this->id = $id;
+		$this->pdo = null;
 	}
-	
-	//FOR SELECTION OF TABLES ONLY AND RETURN OF DATA
-	// Default $number of results is more than 0 = more than 1 results
-	// If the return result is only 1 like getting a single item, pass in $numberOfResults = 1
-	function select_query($querystring, $numberOfResults=0)
+
+	/**
+	 * Connect to the SQLite database, creating and seeding it from $schemaFile
+	 * on first run if the file does not exist yet.
+	 */
+	function connectSqlite($dbFile, $schemaFile)
 	{
-		//echo "QUERY: $querystring<br>";	
-		// NEW SQL STANDARD
-		$mysqli = new MySQLi($this->host, $this->user, $this->password, $this->db);
-		$mysqli->set_charset("utf8");
-		
-		if ($resultQuery = $mysqli->query($querystring)):
-			// returns array for results likely more than one row
+		$this->db = $dbFile;
+		$needsSeed = !file_exists($dbFile) || filesize($dbFile) === 0;
+
+		$dir = dirname($dbFile);
+		if (!is_dir($dir)) {
+			mkdir($dir, 0777, true);
+		}
+
+		$this->pdo = new PDO("sqlite:" . $dbFile);
+		$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+		$this->pdo->exec("PRAGMA foreign_keys = ON;");
+
+		if ($needsSeed && file_exists($schemaFile)) {
+			$this->pdo->exec(file_get_contents($schemaFile));
+		}
+	}
+
+	/****************************************************************************
+	* QUERIES                                                                   *
+	****************************************************************************/
+
+	// FOR SELECTION OF TABLES ONLY AND RETURN OF DATA
+	// Default $numberOfResults is 0 = expect more than one row (returns array of rows).
+	// Pass $numberOfResults = 1 to return a single row (associative array).
+	function select_query($querystring, $numberOfResults = 0)
+	{
+		try {
+			$stmt = $this->pdo->query($querystring);
+
 			if ($numberOfResults == 0):
-				$rows = array();
-				while ($row = $resultQuery->fetch_assoc()):
-					array_push($rows, $row);	
-				endwhile;
-				
-				$result = $rows;			
+				// returns array of rows
+				$result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 			else:
-				// returns only one result	
-				$result = $resultQuery->fetch_assoc();
-				// Check for NULL return
-				if ($result == NULL):
-					$result = 505;
-				endif;
+				// returns a single row
+				$row = $stmt->fetch(PDO::FETCH_ASSOC);
+				// Check for NULL / no-row return (kept from original contract)
+				$result = ($row === false) ? 505 : $row;
 			endif;
-			 // free result set
-			$resultQuery->close();	
-		else:
+
+			return $result;
+		} catch (PDOException $e) {
 			// error from DB / SQL
-			$result = 500;
-		endif;
-	
-		// close connection
-		$mysqli->close();
-						
-		return $result;
+			return 500;
+		}
 	}
-	
+
 	function update_query($querystring)
-	{	
-		$id = "";
-	
-		// NEW SQL STANDARD
-		$mysqli = new MySQLi($this->host, $this->user, $this->password, $this->db);
-		$mysqli->set_charset("utf8");
-		
-		if ($resultQuery = $mysqli->query($querystring)):
-			if ($mysqli->affected_rows > 0):
-				if (isset($mysqli->insert_id)):
-					$id = $mysqli->insert_id;				
-				endif;
-				
-				$result = array('update'=>200, 'id' => $id);
+	{
+		try {
+			$affected = $this->pdo->exec($querystring);
+
+			if ($affected > 0):
+				$id = $this->pdo->lastInsertId();
+				return array('update' => 200, 'id' => $id);
 			else:
-				$result = 503;
+				return 503;
 			endif;
-		else:
+		} catch (PDOException $e) {
 			// error from DB / SQL
-			$result = 500;
-		endif;
-		
-		// close connection
-		$mysqli->close();
-			
-		return $result;
+			return 500;
+		}
 	}
-	
+
 	//-----------------------------------------------------------------------------
 	function logerrors($logfile)
 	{

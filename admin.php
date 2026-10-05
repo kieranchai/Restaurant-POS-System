@@ -1,16 +1,8 @@
-<html>
-
-<head>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@2.51.6/dist/full.css" rel="stylesheet" type="text/css" />
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2/dist/tailwind.min.css" rel="stylesheet" type="text/css" />
-</head>
-
-<body>
-    <?php
+<?php
     /******************************************************************
-       View.php
-       This file is where the user interacts only and checks all the POST actions
-       PHP can be combined with HTML codes.
+       admin.php
+       Staff console: payments log, members, promotions and branches.
+       PHP logic runs first so the header() redirect works correctly.
        ******************************************************************/
 
     include("Common.php");
@@ -21,40 +13,71 @@
         $userRole = $_POST['role'];
     } else {
         header("location: index.php");
+        exit;
     }
 
-    echo "<div class='container my-16 px-6 mx-auto'>";
-    echo "<div class='navbar text-neutral-content'>";
-    // Log Out Button
-    echo "<div class='navbar-start'> <form class='mb-8' action=index.php method='post'>";
-    echo "<input type='hidden' name='action'><input class='btn btn-primary w-full max-w-xs' type='submit' value='Logout' />";
-    echo "</form></div>";
+    $pageTitle = "Ember Staff Console";
+    $barSlot = "<span class='brand-tag--chip'>Staff Console</span>";
+    include("partials/head.php");
 
-    echo "<div class='navbar-end gap-2'>";
-    // View Members Button
-    echo "<div><form class='mb-8' action=admin.php method='post'>";
-    echo "<input type='hidden' name='action' value='viewMembers'><input class='btn btn-primary w-full max-w-xs' type='submit' value='Members' />";
+    echo "<div class='container my-10 px-6 mx-auto'>";
+
+    // Work out which tab is currently being viewed so we can highlight it.
+    $currentAction = isset($_POST['action']) ? $_POST['action'] : '';
+    $activeTab = 'payments';
+    if (stripos($currentAction, 'member') !== false) {
+        $activeTab = 'members';
+    } else if (stripos($currentAction, 'promotion') !== false) {
+        $activeTab = 'promotions';
+    } else if (stripos($currentAction, 'branch') !== false || $currentAction == 'seeTables' || $currentAction == 'freeTable') {
+        $activeTab = 'branches';
+    }
+    $activeClass = function ($tab) use ($activeTab) {
+        return $activeTab === $tab ? ' is-active' : '';
+    };
+
+    // Admin top bar
+    echo "<div class='admin-bar'>";
+    echo sprintf("<span class='admin-title'>Dashboard <span class='role-chip'>%s</span></span>", $userRole);
+
+    // Payments
+    echo "<form action=admin.php method='post'>";
+    echo sprintf("<input type='hidden' name='action' value=''><input class='btn btn-sm tab-btn%s' type='submit' value='Payments' />", $activeClass('payments'));
     echo sprintf("<input type='hidden' name='role' value='%s'>", $userRole);
-    echo "</form></div>";
-    // View Payments Button
-    echo "<div><form class='mb-8' action=admin.php method='post'>";
-    echo "<input type='hidden' name='action' value=''><input class='btn btn-primary w-full max-w-xs' type='submit' value='Payments' />";
+    echo "</form>";
+    // Members
+    echo "<form action=admin.php method='post'>";
+    echo sprintf("<input type='hidden' name='action' value='viewMembers'><input class='btn btn-sm tab-btn%s' type='submit' value='Members' />", $activeClass('members'));
     echo sprintf("<input type='hidden' name='role' value='%s'>", $userRole);
-    echo "</form></div>";
-    // View Promotion Button
-    echo "<div><form class='mb-8' action=admin.php method='post'>";
-    echo "<input type='hidden' name='action' value='viewPromotions'><input class='btn btn-primary w-full max-w-xs' type='submit' value='Promotions' />";
+    echo "</form>";
+    // Promotions
+    echo "<form action=admin.php method='post'>";
+    echo sprintf("<input type='hidden' name='action' value='viewPromotions'><input class='btn btn-sm tab-btn%s' type='submit' value='Promotions' />", $activeClass('promotions'));
     echo sprintf("<input type='hidden' name='role' value='%s'>", $userRole);
     echo sprintf("<input type='hidden' name='promotionId' value='%s'>", 0);
-    echo "</form></div>";
-    // View Branches Button
-    echo "<div><form class='mb-8' action=admin.php method='post'>";
-    echo "<input type='hidden' name='action' value='viewBranches'><input class='btn btn-primary w-full max-w-xs' type='submit' value='Branches' />";
+    echo "</form>";
+    // Branches
+    echo "<form action=admin.php method='post'>";
+    echo sprintf("<input type='hidden' name='action' value='viewBranches'><input class='btn btn-sm tab-btn%s' type='submit' value='Branches' />", $activeClass('branches'));
     echo sprintf("<input type='hidden' name='role' value='%s'>", $userRole);
     echo sprintf("<input type='hidden' name='branchId' value='%s'>", 0);
-    echo "</form></div>";
+    echo "</form>";
+    // Logout (asks for confirmation first via an in-page modal)
+    echo "<button type='button' class='btn btn-sm btn-error' data-logout-open>Logout</button>";
+    echo "<form id='logoutForm' class='mb-0' action=index.php method='post'><input type='hidden' name='action'></form>";
+
     echo "</div>";
 
+    // Logout confirmation modal
+    echo "<div id='logoutModal' class='modal-overlay' hidden>";
+    echo "<div class='modal-box'>";
+    echo "<h3>Log out?</h3>";
+    echo "<p class='section-sub' style='margin:6px 0 18px'>You will be returned to the login screen.</p>";
+    echo "<div class='modal-actions'>";
+    echo "<button type='button' class='btn btn-sm btn-ghost' data-logout-cancel>Cancel</button>";
+    echo "<button type='button' class='btn btn-sm btn-error' data-logout-confirm>Log out</button>";
+    echo "</div>";
+    echo "</div>";
     echo "</div>";
 
     if (!empty($_POST)) {
@@ -192,8 +215,9 @@
     {
         $tables = getAllTables($branchId);
         $branch = getBranchFromTable($branchId);
-        echo "<div class='pt-8'>";
-        echo sprintf("<span class='text-lg'>Branch: <b>%s</b></span><div class='divider'></div>", $branch['branchName']);
+        echo "<div class='pb-5'><span class='section-eyebrow'>Operations</span><h1 class='section-title'>Tables</h1>";
+        echo sprintf("<p class='section-sub'>%s</p></div>", $branch['branchName']);
+        echo "<div class='pt-2'>";
         echo "<div class='overflow-x-auto'>";
         echo "<table class='table table-zebra w-full'>";
         echo "<thead>";
@@ -210,7 +234,7 @@
             echo sprintf("<td>%s</td>", $table['tableId']);
             echo sprintf("<td>%s</td>", $table['tableNo']);
             if ($table['isReserved'] == 0) {
-                echo sprintf("<td><p style='color:green'>Available</p></td>");
+                echo sprintf("<td><span class='status-pill is-available'>Available</span></td>");
                 echo "<td><form class='mb-0' action=admin.php method='post'>";
                 echo "<input type='hidden' name='action'>";
                 echo sprintf("<input type='hidden' name='role' value='%s'>", $role);
@@ -218,7 +242,7 @@
                 echo "</form></td>";
                 echo "</tr>";
             } else {
-                echo sprintf("<td><p style='color:red';>Occupied</p></td>");
+                echo sprintf("<td><span class='status-pill is-occupied'>Occupied</span></td>");
                 echo "<td><form class='mb-0' action=admin.php method='post'>";
                 echo "<input type='hidden' name='action' value='freeTable'>";
                 echo sprintf("<input class='btn btn-sm btn-success' type='submit' value='Set Available' />");
@@ -245,7 +269,8 @@
 
         $promotions = getAllPromotions();
 
-        echo "<div class='pt-8'>";
+        echo "<div class='pb-5'><span class='section-eyebrow'>Marketing</span><h1 class='section-title'>Promotions</h1></div>";
+        echo "<div class='pt-2'>";
 
         echo "<div class='overflow-x-auto'>";
         echo "<table class='table table-zebra w-full'>";
@@ -344,14 +369,14 @@
             echo "<tr>";
             echo sprintf("<td></td>");
             echo "<form class='mt-8' method='post''>";
-            echo sprintf("<td><input type='text' placeholder='Promotion Name' class='input input-bordered w-full max-w-xs' name='promotionName'/></td>");
-            echo sprintf("<td><input type='text' placeholder='Promotion Code' class='input input-bordered w-full max-w-xs' name='promotionCode'/></td>");
-            echo sprintf("<td><input type='number' step='0.01' placeholder='Promotion Value' class='input input-bordered w-full max-w-xs' name='promotionValue'/></td>");
+            echo sprintf("<td><input type='text' placeholder='Promotion Name' class='input input-bordered w-full max-w-xs' name='promotionName' data-vgroup='newPromotion' data-validate-field/></td>");
+            echo sprintf("<td><input type='text' placeholder='Promotion Code' class='input input-bordered w-full max-w-xs' name='promotionCode' data-vgroup='newPromotion' data-validate-field/></td>");
+            echo sprintf("<td><input type='number' step='0.01' placeholder='Promotion Value' class='input input-bordered w-full max-w-xs' name='promotionValue' data-vgroup='newPromotion' data-validate-field/></td>");
 
             echo "<td><form class='mb-0' action=admin.php method='post'>";
             echo "<input type='hidden' name='action' value='confirmNewPromotion'>";
             echo sprintf("<input type='hidden' name='role' value='%s'>", $role);
-            echo sprintf("<input class='btn btn-sm btn-success' type='submit' value='Confirm' />");
+            echo sprintf("<input class='btn btn-sm btn-success' type='submit' value='Confirm' data-vgroup='newPromotion' data-validate-btn/>");
             echo "</form></td>";
             echo "</form>";
 
@@ -361,9 +386,7 @@
             echo sprintf("<input class='btn btn-sm btn-error' type='submit' value='Cancel' />");
             echo "</form></td>";
 
-            echo "<td>";
-            echo sprintf("<input class='btn btn-sm btn-disabled' value='' />");
-            echo "</td>";
+            echo "<td></td>";
             echo "</tr>";
         }
         echo "</tbody>";
@@ -380,7 +403,8 @@
 
         $members = getAllMembers();
 
-        echo "<div class='pt-8'>";
+        echo "<div class='pb-5'><span class='section-eyebrow'>Loyalty</span><h1 class='section-title'>Members</h1></div>";
+        echo "<div class='pt-2'>";
 
         echo "<div class='overflow-x-auto'>";
         echo "<table class='table table-zebra w-full'>";
@@ -479,14 +503,15 @@
             echo "<tr>";
             echo sprintf("<td></td>");
             echo "<form class='mt-8' method='post''>";
-            echo sprintf("<td><input type='text' placeholder='First Name' class='input input-bordered w-full max-w-xs' name='memberFirstName'/></td>");
-            echo sprintf("<td><input type='text' placeholder='Last Name' class='input input-bordered w-full max-w-xs' name='memberLastName'/></td>");
-            echo sprintf("<td><input type='text' placeholder='Phone Number' class='input input-bordered w-full max-w-xs' name='memberNumber'/></td>");
+            echo sprintf("<td><input type='text' placeholder='First Name' class='input input-bordered w-full max-w-xs' name='memberFirstName' data-vgroup='newMember' data-validate-field/></td>");
+            echo sprintf("<td><input type='text' placeholder='Last Name' class='input input-bordered w-full max-w-xs' name='memberLastName' data-vgroup='newMember' data-validate-field/></td>");
+            echo sprintf("<td><input type='text' placeholder='Phone Number' class='input input-bordered w-full max-w-xs' name='memberNumber' data-vgroup='newMember' data-validate-field/></td>");
+            echo "<td></td>";
 
             echo "<td><form class='mb-0' action=admin.php method='post'>";
             echo "<input type='hidden' name='action' value='confirmNewMember'>";
             echo sprintf("<input type='hidden' name='role' value='%s'>", $role);
-            echo sprintf("<input class='btn btn-sm btn-success' type='submit' value='Confirm' />");
+            echo sprintf("<input class='btn btn-sm btn-success' type='submit' value='Confirm' data-vgroup='newMember' data-validate-btn/>");
             echo "</form></td>";
             echo "</form>";
 
@@ -496,9 +521,7 @@
             echo sprintf("<input class='btn btn-sm btn-error' type='submit' value='Cancel' />");
             echo "</form></td>";
 
-            echo "<td>";
-            echo sprintf("<input class='btn btn-sm btn-disabled' value='' />");
-            echo "</td>";
+            echo "<td></td>";
             echo "</tr>";
         }
         echo "</tbody>";
@@ -514,7 +537,8 @@
     {
         $payments = getAllPayments();
 
-        echo "<div class='pt-8'>";
+        echo "<div class='pb-5'><span class='section-eyebrow'>Transactions</span><h1 class='section-title'>Payments</h1></div>";
+        echo "<div class='pt-2'>";
 
         echo "<div class='overflow-x-auto'>";
         echo "<table class='table table-zebra w-full'>";
@@ -526,7 +550,8 @@
         echo "<th>DateTime</th>";
         echo "<th>Payment Method</th>";
         echo "<th>Items Ordered</th>";
-        echo "<th>Dining</th>";
+        echo "<th>Order Type</th>";
+        echo "<th>Outlet</th>";
         echo "<th>Actions</th>";
         echo "</tr>";
         echo "</thead>";
@@ -535,27 +560,38 @@
             echo "<tr>";
             echo sprintf("<td>%s</td>", $payment['paymentId']);
             echo sprintf("<td>%s</td>", $payment['billId']);
-            echo sprintf("<td>$%s</td>", $payment['totalAmount']);
+            echo sprintf("<td>$%s</td>", number_format((float) $payment['totalAmount'], 2, '.', ''));
             echo sprintf("<td>%s</td>", $payment['paymentDateTime']);
             echo sprintf("<td>%s</td>", $payment['paymentMethod']);
 
             $paymentBill = getBillFromPayment($payment['billId']);
-            $billMenuItems = $paymentBill['menuIds'];
-            $billMenuItemsArray = explode(",", $billMenuItems);
-            $billTableId = $paymentBill['tableId'];
-            $branchId = getTable($billTableId)['branchId'];
-            $branchName = (getBranchFromTable($branchId))['branchName'];
+            $billMenuItemsArray = array();
+            $branchName = null;
+            if (is_array($paymentBill)) {
+                $billMenuItemsArray = explode(",", $paymentBill['menuIds']);
+                $tableRow = getTable($paymentBill['tableId']);
+                if (is_array($tableRow)) {
+                    $branchRow = getBranchFromTable($tableRow['branchId']);
+                    $branchName = is_array($branchRow) ? $branchRow['branchName'] : null;
+                }
+            }
             echo "<td>";
             foreach ($billMenuItemsArray as $billMenuItem):
                 $menuItem = getMenuItemFromCart($billMenuItem);
-                echo $menuItem['menuItemName'];
-                echo "<br>";
+                if (is_array($menuItem)) {
+                    echo $menuItem['menuItemName'];
+                    echo "<br>";
+                }
             endforeach;
             echo "</td>";
             if (!empty($branchName)) {
-                echo sprintf("<td>Dine-In, %s</td>", $branchName);
+                echo "<td>Dine-In</td>";
+                echo sprintf("<td>%s</td>", $branchName);
             } else {
-                echo sprintf("<td>Takeaway, %s</td>", (getBranchFromTable($paymentBill['branchId']))['branchName']);
+                $takeawayBranch = is_array($paymentBill) ? getBranchFromTable($paymentBill['branchId']) : null;
+                $takeawayName = is_array($takeawayBranch) ? $takeawayBranch['branchName'] : "";
+                echo "<td>Takeaway</td>";
+                echo sprintf("<td>%s</td>", $takeawayName);
             }
 
             if ($role == 'admin') {
@@ -589,7 +625,8 @@
 
         $branches = getAllBranches();
 
-        echo "<div class='pt-8'>";
+        echo "<div class='pb-5'><span class='section-eyebrow'>Operations</span><h1 class='section-title'>Branches</h1></div>";
+        echo "<div class='pt-2'>";
 
         echo "<div class='overflow-x-auto'>";
         echo "<table class='table table-zebra w-full'>";
@@ -601,7 +638,6 @@
         echo "<th>Number of Tables</th>";
         echo "<th>Branch Image</th>";
         echo "<th>Actions</th>";
-        echo "<th></th>";
         echo "</tr>";
         echo "</thead>";
         echo "<tbody>";
@@ -611,14 +647,15 @@
                 echo sprintf("<td>%s</td>", $branch['branchId']);
                 echo sprintf("<td>%s</td>", $branch['branchName']);
                 echo sprintf("<td>%s</td>", $branch['branchAddress']);
-                echo sprintf("<td><p class='text-center'>%s</p>", $branch['numberOfTables']);
-                echo "<form class='pt-2 mb-0' action=admin.php method='post'>";
+                echo "<td><div class='tables-cell'>";
+                echo sprintf("<span class='tables-count'>%s</span>", $branch['numberOfTables']);
+                echo "<form class='mb-0' action=admin.php method='post'>";
                 echo "<input type='hidden' name='action' value='seeTables'>";
                 echo sprintf("<input class='btn btn-sm btn-success' type='submit' value='View Tables' />");
                 echo sprintf("<input type='hidden' name='role' value='%s'>", $role);
                 echo sprintf("<input type='hidden' name='branchId' value='%s'>", $branch['branchId']);
-                echo "</form></td>";
-                echo sprintf("<td><img class='w-32 h-full' src='images/" . $branch['branchImage'] . "'/></td>");
+                echo "</form></div></td>";
+                echo sprintf("<td><img class='branch-thumb' src='images/" . $branch['branchImage'] . "' alt='" . htmlspecialchars($branch['branchName']) . "'/></td>");
 
                 if ($role == 'admin') {
                     echo "<td><form class='mb-0' action=admin.php method='post'>";
@@ -627,17 +664,13 @@
                     echo sprintf("<input type='hidden' name='role' value='%s'>", $role);
                     echo sprintf("<input type='hidden' name='branchId' value='%s'>", $branch['branchId']);
                     echo "</form></td>";
-                    echo "<td>";
                 } else {
                     echo "<td><form class='mb-0' action=admin.php method='post'>";
                     echo "<input type='hidden' name='action'>";
                     echo sprintf("<input class='btn btn-sm btn-disabled' value='Update' />");
                     echo "</form></td>";
-                    echo "<td>";
                 }
 
-                echo sprintf("<input class='btn btn-sm btn-disabled' value='' />");
-                echo "</td>";
                 echo "</tr>";
             } else {
                 echo "<tr>";
@@ -647,7 +680,7 @@
                 echo sprintf("<td><input type='text' placeholder='%s' class='input input-bordered w-full max-w-xs' name='branchAddress' value='%s'/></td>", $branch['branchAddress'], $branch['branchAddress']);
                 echo sprintf("<td><input type='text' placeholder='%s' class='input input-bordered w-full max-w-xs' name='numberOfTables' value='%s'/></td>", $branch['numberOfTables'], $branch['numberOfTables']);
 
-                echo sprintf("<td><img class='w-32 h-full' src='images/" . $branch['branchImage'] . "'/><input class='w-32' type='file' name='branchImage'/></td>");
+                echo sprintf("<td><img class='branch-thumb mb-2' src='images/" . $branch['branchImage'] . "' alt='" . htmlspecialchars($branch['branchName']) . "'/><input class='w-32' type='file' name='branchImage'/></td>");
 
                 echo "<td><form class='mb-0' action=admin.php method='post'>";
                 echo "<input type='hidden' name='action' value='confirmUpdateBranch'>";
@@ -655,14 +688,15 @@
                 echo sprintf("<input type='hidden' name='branchId' value='%s'>", $branchId);
                 echo sprintf("<input type='hidden' name='role' value='%s'>", $role);
                 echo sprintf("<input type='hidden' name='originalBranchImage' value='%s'>", $branch['branchImage']);
-                echo "</form></td>";
+                echo "</form>";
                 echo "</form>";
 
-                echo "<td><form class='mb-0' action=admin.php method='post'>";
+                echo "<form class='mb-0' style='display:inline-block;margin-left:6px' action=admin.php method='post'>";
                 echo "<input type='hidden' name='action' value='cancelUpdateBranch'>";
                 echo sprintf("<input type='hidden' name='role' value='%s'>", $role);
                 echo sprintf("<input class='btn btn-sm btn-error' type='submit' value='Cancel' />");
-                echo "</form></td>";
+                echo "</form>";
+                echo "</td>";
                 echo "</tr>";
             }
 
@@ -677,7 +711,5 @@
     }
 
     echo "</div>";
+    include("partials/footer.php");
     ?>
-</body>
-
-</html>
